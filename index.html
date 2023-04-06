@@ -1,66 +1,71 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<title>Оплата заказа</title>
-	<meta charset="utf-8">
-	<script src="https://widget.cloudpayments.ru/bundles/cloudpayments"></script>
-</head>
-<body>
-	<form id="payment-form">
-		<label>
-			Номер карты:
-			<input type="text" id="cardNumber" required>
-		</label>
-		<br><br>
-		<label>
-			Срок действия (мм/гг):
-			<input type="text" id="cardExp" required>
-		</label>
-		<br><br>
-		<label>
-			CVC:
-			<input type="text" id="cardCvc" required>
-		</label>
-		<br><br>
-		<button type="submit" id="payButton">Оплатить</button>
-	</form>
-	<script>
-		var access_token = "Bearer dczbshny3gtfxgea0i71w3l2s";
-		var appId = "3fb1728c-b2e4-4f80-9d29-e445a92d801c";
-		var collectionName = "t_4ih9comtkdl1h4noxzoo32ews";
-		
-		var form = document.getElementById("payment-form");
-		form.addEventListener("submit", function(event) {
-			event.preventDefault();
-			
-			var cardNumber = document.getElementById("cardNumber").value;
-			var cardExp = document.getElementById("cardExp").value;
-			var cardCvc = document.getElementById("cardCvc").value;
-			
-			CloudPayments.cardToken({
-				publicId: 'pk_449f4dbb3b1e917d21fcee1a94804',
-				cardNumber: cardNumber,
-				expDate: cardExp,
-				cardCVC: cardCvc
-			}, function(err, res) {
-				if (err) {
-					console.log(err);
-				} else {
-					var ccp = res.cardCryptogramPacket;
-					
-					var xhttp = new XMLHttpRequest();
-					xhttp.onreadystatechange = function() {
-						if (this.readyState == 4 && this.status == 200) {
-							console.log("CCP successfully added to Adalo");
-						}
-					};
-					xhttp.open("POST", "https://api.adalo.com/v0/apps/" + appId + "/collections/" + collectionName, true);
-					xhttp.setRequestHeader("Content-Type", "application/json");
-					xhttp.setRequestHeader("Authorization", access_token);
-					xhttp.send(JSON.stringify({"ccp": ccp}));
-				}
-			});
-		});
-	</script>
-</body>
-</html>
+<!-- Подключаем скрипт CloudPayments на странице -->
+<script src="https://widget.cloudpayments.ru/bundles/cloudpayments"></script>
+
+<!-- Создаем HTML-форму для ввода данных карты -->
+<form id="payment-form">
+  <label for="cardNumber">Номер карты</label>
+  <input type="text" id="cardNumber" name="cardNumber">
+  <label for="cardExp">Срок действия карты</label>
+  <input type="text" id="cardExp" name="cardExp">
+  <label for="cardCvc">CVC код</label>
+  <input type="text" id="cardCvc" name="cardCvc">
+  <button type="button" id="pay-button">Оплатить</button>
+</form>
+
+<script>
+  // Функция обработки нажатия на кнопку оплаты
+  function pay() {
+    // Получаем данные карты из формы
+    const cardNumber = document.getElementById('cardNumber').value;
+    const cardExp = document.getElementById('cardExp').value;
+    const cardCvc = document.getElementById('cardCvc').value;
+
+    // Создаем объект options для передачи данных карты в функцию CloudPayments.generateCryptogram
+    const options = {
+      publicId: 'pk_449f4dbb3b1e917d21fcee1a94804', // ID публичного ключа CloudPayments
+      cardNumber,
+      cardDate: cardExp.replace(/\s+/g, ''), // форматируем дату для передачи в функцию
+      cardSecurityCode: cardCvc,
+    };
+
+    // Вызываем функцию CloudPayments.generateCryptogram для генерации криптограммы
+    CloudPayments.generateCryptogram(options, function (err, response) {
+      if (err) {
+        console.log(err);
+        alert('Ошибка при генерации криптограммы');
+        return;
+      }
+
+      // Извлекаем криптограмму из полученного объекта response
+      const cryptogram = response.cryptogram;
+
+      // Формируем тело запроса для отправки данных в Adalo через API
+      const data = {
+        "fields": {
+          "Cryptogram": cryptogram
+        }
+      };
+
+      // Отправляем данные с помощью fetch() и метода POST на URL базы данных Adalo
+      fetch('https://api.adalo.com/v0/apps/3fb1728c-b2e4-4f80-9d29-e445a92d801c/collections/t_4ih9comtkdl1h4noxzoo32ews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer dczbshny3gtfxgea0i71w3l2s' // ключ API Adalo
+        },
+        body: JSON.stringify(data)
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Ошибка при отправке данных в Adalo');
+        }
+        alert('Оплата прошла успешно');
+      })
+      .catch(error => {
+        console.log(error);
+        alert('Ошибка при отправке данных в Adalo');
+      });
+    });
+  }
+
+  // Назначаем обработчик события на кнопку оплат
