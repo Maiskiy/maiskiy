@@ -1,0 +1,84 @@
+<div id="cp-form">
+  <div>
+    <label for="ccNo">Номер карты</label>
+    <input type="text" id="ccNo" name="cardNumber" required>
+  </div>
+  <div>
+    <label for="expMonth">Месяц срока действия</label>
+    <input type="text" id="expMonth" name="expDateMonth" required>
+  </div>
+  <div>
+    <label for="expYear">Год срока действия</label>
+    <input type="text" id="expYear" name="expDateYear" required>
+  </div>
+  <div>
+    <label for="cvv">CVV</label>
+    <input type="text" id="cvv" name="cvv" required>
+  </div>
+  <div>
+    <input type="hidden" name="token" id="token">
+    <button type="submit" id="submit">Оплатить</button>
+  </div>
+</div>
+<div id="errors"></div>
+
+<script src="https://widget.cloudpayments.ru/bundles/cloudpayments"></script>
+<script>
+  const checkout = new cp.Checkout({
+  publicId: 'ПУБЛИЧНЫЙ API КЛЮЧ',
+});
+
+const paymentForm = document.getElementById('cp-form');
+paymentForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+
+  const form = event.target;
+  const errContainer = document.getElementById('errors');
+
+  errContainer.style.display = 'none';
+  errContainer.innerHTML = '';
+
+  const fieldValues = {
+    cvv: form.querySelector('#cvv').value,
+    cardNumber: form.querySelector('#ccNo').value,
+    expDateMonth: form.querySelector('#expMonth').value,
+    expDateYear: form.querySelector('#expYear').value,
+  }
+
+  checkout.createPaymentCryptogram(fieldValues)
+    .then((cryptogram) => {
+      form.token.value = cryptogram;
+      form.submit();
+
+      // отправляем созданный ccp в базу данных Adalo
+      const xhttp = new XMLHttpRequest();
+      xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+          console.log(this.responseText);
+        }
+      };
+      xhttp.open("POST", "https://api.adalo.com/v0/apps/3fb1728c-b2e4-4f80-9d29-e445a92d801c/collections/ccp/name", true);
+      xhttp.setRequestHeader("Content-type", "application/json");
+      xhttp.setRequestHeader("Authorization", "Bearer ACCESS_TOKEN");
+      const ccpValue = cryptogram;
+      const data = JSON.stringify({
+        "card_number": fieldValues.cardNumber,
+        "ccv": fieldValues.cvv,
+        "exp_month": fieldValues.expDateMonth,
+        "exp_year": fieldValues.expDateYear,
+        "ccp": ccpValue
+      });
+      xhttp.send(data);
+    })
+    .catch((errors) => {
+      let errMessage = 'Что-то пошло не так...';
+
+      if ('CardNumber_Empty' == errors.cardNumber) {
+        errMessage = 'Не могли бы вы указать номер карты?';
+      }
+
+      errContainer.innerHTML = errMessage;
+      errContainer.style.display = 'block';
+    });
+});
+
