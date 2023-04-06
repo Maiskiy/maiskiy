@@ -9,6 +9,8 @@
   <input type="text" id="cardExp" name="cardExp">
   <label for="cardCvc">CVC код</label>
   <input type="text" id="cardCvc" name="cardCvc">
+  <label for="cardHolder">Имя владельца карты</label>
+  <input type="text" id="cardHolder" name="cardHolder">
   <button type="button" id="pay-button">Оплатить</button>
 </form>
 
@@ -19,6 +21,7 @@
     const cardNumber = document.getElementById('cardNumber').value;
     const cardExp = document.getElementById('cardExp').value;
     const cardCvc = document.getElementById('cardCvc').value;
+    const cardHolder = document.getElementById('cardHolder').value;
 
     // Создаем объект options для передачи данных карты в функцию CloudPayments.generateCryptogram
     const options = {
@@ -26,6 +29,7 @@
       cardNumber,
       cardDate: cardExp.replace(/\s+/g, ''), // форматируем дату для передачи в функцию
       cardSecurityCode: cardCvc,
+      cardHolderName: cardHolder // имя владельца карты
     };
 
     // Вызываем функцию CloudPayments.generateCryptogram для генерации криптограммы
