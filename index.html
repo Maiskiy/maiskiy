@@ -1,82 +1,66 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Payment form</title>
-  </head>
-  <body>
-    <h1>Оплата</h1>
-    <form id="cp-form">
-      <div>
-        <label for="ccNo">Номер карты</label>
-        <input type="text" id="ccNo" name="cardNumber" required>
-      </div>
-      <div>
-        <label for="expMonth">Месяц срока действия</label>
-        <input type="text" id="expMonth" name="expDateMonth" required>
-      </div>
-      <div>
-        <label for="expYear">Год срока действия</label>
-        <input type="text" id="expYear" name="expDateYear" required>
-      </div>
-      <div>
-        <label for="cvv">CVV</label>
-        <input type="text" id="cvv" name="cvv" required>
-      </div>
-      <div>
-        <input type="hidden" name="token" id="token">
-        <button type="submit" id="submit">Оплатить</button>
-      </div>
-    </form>
-    <div id="errors"></div>
-
-    <script src="https://widget.cloudpayments.ru/bundles/cloudpayments"></script>
-    <script>
-      const checkout = new cp.Checkout({
-        publicId: 'pk_449f4dbb3b1e917d21fcee1a94804',
-      });
-
-      const paymentForm = document.getElementById('cp-form');
-      paymentForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
-        const form = event.target;
-        const errContainer = document.getElementById('errors');
-
-        errContainer.style.display = 'none';
-        errContainer.innerHTML = '';
-
-        const fieldValues = {
-          cvv: form.querySelector('#cvv').value,
-          cardNumber: form.querySelector('#ccNo').value,
-          expDateMonth: form.querySelector('#expMonth').value,
-          expDateYear: form.querySelector('#expYear').value,
-        }
-
-        checkout.createPaymentCryptogram(fieldValues)
-          .then((cryptogram) => {
-            form.token.value = cryptogram;
-            form.submit();
-
-            // отправляем созданный ccp в базу данных Adalo
-            const xhttp = new XMLHttpRequest();
-            xhttp.onreadystatechange = function() {
-              if (this.readyState == 4 && this.status == 200) {
-                console.log(this.responseText);
-              }
-            };
-            xhttp.open("POST", "https://api.adalo.com/v0/apps/3fb1728c-b2e4-4f80-9d29-e445a92d801c/collections/t_4ih9comtkdl1h4noxzoo32ews", true);
-            xhttp.setRequestHeader("Content-type", "application/json");
-            xhttp.setRequestHeader("Authorization", "Bearer dczbshny3gtfxgea0i71w3l2s");
-            const data = JSON.stringify({
-              "card_number": fieldValues.cardNumber,
-              "ccv": fieldValues.cvv,
-              "exp_month": fieldValues.expDateMonth,
-              "exp_year": fieldValues.expDateYear,
-              "ccp": cryptogram
-            });
-            xhttp.send(data);
-          })
-          .catch((errors) => {
-            let errMessage = 'Что-то пошло не так...';
-
-            if ('CardNumber_Empty' ==
+<head>
+	<title>Оплата заказа</title>
+	<meta charset="utf-8">
+	<script src="https://widget.cloudpayments.ru/bundles/cloudpayments"></script>
+</head>
+<body>
+	<form id="payment-form">
+		<label>
+			Номер карты:
+			<input type="text" id="cardNumber" required>
+		</label>
+		<br><br>
+		<label>
+			Срок действия (мм/гг):
+			<input type="text" id="cardExp" required>
+		</label>
+		<br><br>
+		<label>
+			CVC:
+			<input type="text" id="cardCvc" required>
+		</label>
+		<br><br>
+		<button type="submit" id="payButton">Оплатить</button>
+	</form>
+	<script>
+		var access_token = "Bearer dczbshny3gtfxgea0i71w3l2s";
+		var appId = "3fb1728c-b2e4-4f80-9d29-e445a92d801c";
+		var collectionName = "t_4ih9comtkdl1h4noxzoo32ews";
+		
+		var form = document.getElementById("payment-form");
+		form.addEventListener("submit", function(event) {
+			event.preventDefault();
+			
+			var cardNumber = document.getElementById("cardNumber").value;
+			var cardExp = document.getElementById("cardExp").value;
+			var cardCvc = document.getElementById("cardCvc").value;
+			
+			CloudPayments.cardToken({
+				publicId: 'pk_449f4dbb3b1e917d21fcee1a94804',
+				cardNumber: cardNumber,
+				expDate: cardExp,
+				cardCVC: cardCvc
+			}, function(err, res) {
+				if (err) {
+					console.log(err);
+				} else {
+					var ccp = res.cardCryptogramPacket;
+					
+					var xhttp = new XMLHttpRequest();
+					xhttp.onreadystatechange = function() {
+						if (this.readyState == 4 && this.status == 200) {
+							console.log("CCP successfully added to Adalo");
+						}
+					};
+					xhttp.open("POST", "https://api.adalo.com/v0/apps/" + appId + "/collections/" + collectionName, true);
+					xhttp.setRequestHeader("Content-Type", "application/json");
+					xhttp.setRequestHeader("Authorization", access_token);
+					xhttp.send(JSON.stringify({"ccp": ccp}));
+				}
+			});
+		});
+	</script>
+</body>
+</html>
